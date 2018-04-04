@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.Vector3;
 
 public class OpenGL extends ApplicationAdapter {
 	
@@ -18,16 +19,19 @@ public class OpenGL extends ApplicationAdapter {
 	Mesh mesh;
 	OrthographicCamera cam;
 	
-	final int NUM_ROWS = 2;
-	final int NUM_COLS = 2;
+	final int NUM_ROWS = 4;
+	final int NUM_COLS = 4;
+	int numTris;
 	
 	long tick = 0;
 	
 	@Override
 	public void create() {
 		super.create();
+		numTris = (NUM_COLS-1) * (NUM_ROWS-1);
 		cam = new OrthographicCamera(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 		shader = new ShaderProgram(Gdx.files.local("assets/vertex.glsl").readString(), Gdx.files.local("assets/fragment.glsl").readString());
+		
 		mesh = new Mesh(false, 600, 600, new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE));
 		/*mesh.setVertices(new float[] 
 				{
@@ -41,14 +45,31 @@ public class OpenGL extends ApplicationAdapter {
 						20, 200, 0
 				}
 		);*/
-		mesh.setVertices(createGridVertices());
-		mesh.setIndices(createGridIndices());
+		float[] vertices = createGridVertices();
+		mesh.setVertices(vertices);
+		mesh.setIndices(createGridIndices(vertices));
 		
 	}
 	
-	private short[] createGridIndices() {
-		short[] indices = new short[NUM_ROWS * NUM_COLS * 3];
-		return new short[] {0,1,2, 1, 2, 3};
+	private short[] createGridIndices(float[] vertices) {
+		short[] indices = new short[numTris*3];
+		int idxVertex = 0;
+		for(int tri = 0; tri < numTris*3 ; tri++) {
+			if((idxVertex+1) % NUM_COLS != 0 || idxVertex == 0) {
+				int i = 0;
+				indices[tri + i++] = (short) idxVertex;
+				indices[tri + i++] = (short) (idxVertex + 1);
+				indices[tri + i++] = (short) (idxVertex + NUM_COLS);
+				idxVertex++;
+				tri+=2;
+			}else {
+				idxVertex++;
+				tri--;
+			}
+			
+		}
+		//new short[] {0,1,3,1,2,5,3,6,7,7,8,5}
+		return indices;
 	}
 
 	private float[] createGridVertices() {
@@ -59,8 +80,8 @@ public class OpenGL extends ApplicationAdapter {
 		for(int row = 0; row< NUM_COLS; row++) {
 			for(int col = 0; col < NUM_ROWS; col++) {
 				int coordinate = 0; 
-				vertices[i + coordinate++] = 100 * col; //x
-				vertices[i + coordinate++] = 100 * row; //x
+				vertices[i + coordinate++] = -200 + 100 * col; //x
+				vertices[i + coordinate++] = -200 + 100 * row; //x
 				vertices[i + coordinate++] = 0; //x
 				i += coordinate;
 			}
