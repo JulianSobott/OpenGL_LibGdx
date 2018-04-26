@@ -44,14 +44,14 @@ public class Test3d implements ApplicationListener {
 	
 	private Mesh waterMesh;
 	
-	final int NUM_ROWS = 10;
-	final int NUM_COLS = 10;
+	final int NUM_ROWS = 20;
+	final int NUM_COLS = 20;
 	final int TRI_WIDTH = 2;
 	int numTris;
 	
 	@Override
 	public void create() {
-		numTris = (NUM_COLS-1) * (NUM_ROWS-1);
+		numTris = (NUM_COLS-1) * (NUM_ROWS-1) * 2;
 		
 		modelBatch = new ModelBatch();
 		cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -146,16 +146,26 @@ public class Test3d implements ApplicationListener {
 	}
 	
 	private short[] createGridIndices(float[] vertices) {
-		short[] indices = new short[numTris*3];
+		short[] indices = new short[numTris*3]; //3 vertices and 2 tris for quad
 		int idxVertex = 0;
-		for(int tri = 0; tri < numTris*3 ; tri++) {
+		for(int tri = 0; tri < numTris*3; tri++) {
 			if((idxVertex+1) % NUM_COLS != 0 || idxVertex == 0) {
 				int i = 0;
+				
+				indices[tri + i++] = (short) (idxVertex+1 + NUM_COLS);
+				indices[tri + i++] = (short) (idxVertex+1 + NUM_COLS - 1);
+				indices[tri + i++] = (short) (idxVertex+1);
+				
+				
+				
 				indices[tri + i++] = (short) idxVertex;
 				indices[tri + i++] = (short) (idxVertex + 1);
 				indices[tri + i++] = (short) (idxVertex + NUM_COLS);
+				
+				
+				
 				idxVertex++;
-				tri+=2;
+				tri+=5;
 			}else {
 				idxVertex++;
 				tri--;
@@ -170,9 +180,9 @@ public class Test3d implements ApplicationListener {
 		float[] vertices = new float[NUM_ROWS * NUM_COLS * 3];
 		int i = 0;
 		float xStart = -Gdx.graphics.getWidth()/2;
-		xStart = -20;
+		xStart = -10;
 		float yStart = -Gdx.graphics.getHeight()/2;
-		yStart = -20;
+		yStart = -10;
 		for(int row = 0; row< NUM_COLS; row++) {
 			for(int col = 0; col < NUM_ROWS; col++) {
 				int coordinate = 0; 
