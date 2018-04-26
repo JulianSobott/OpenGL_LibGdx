@@ -2,6 +2,7 @@ package com.mygdx.game;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
@@ -18,22 +19,13 @@ import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
-import com.badlogic.gdx.graphics.g3d.attributes.FloatAttribute;
-import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.environment.PointLight;
-import com.badlogic.gdx.graphics.g3d.model.MeshPart;
-import com.badlogic.gdx.graphics.g3d.model.Node;
-import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
-import com.badlogic.gdx.graphics.g3d.utils.MeshBuilder;
-import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
-import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
+
 
 public class Test3d implements ApplicationListener {
 	
@@ -46,11 +38,17 @@ public class Test3d implements ApplicationListener {
 	private CameraInputController camController;
 	
 	private Mesh waterMesh;
+	private short[] indices;
+	private float[] vertices;
+	private float[] waterMap1;
+	private float[] waterMap2;
 	
-	final int NUM_ROWS = 20;
-	final int NUM_COLS = 20;
-	final int TRI_WIDTH = 2;
+	final int NUM_ROWS = 100;
+	final int NUM_COLS = 100;
+	final int TRI_WIDTH = 1;
 	int numTris;
+	
+	private final float WAVE_HEIGHT = .5f;
 	
 	@Override
 	public void create() {
@@ -58,7 +56,7 @@ public class Test3d implements ApplicationListener {
 		
 		modelBatch = new ModelBatch();
 		cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		cam.position.set(0, 0, 20f);
+		cam.position.set(0, -30, 30f);
 		cam.lookAt(0, 0, 0);
 		cam.near = 1f;
 		cam.far = 300f;
@@ -68,11 +66,14 @@ public class Test3d implements ApplicationListener {
 
 		environment = new Environment();
 		environment.set(new ColorAttribute(ColorAttribute.AmbientLight, .4f, .4f, .4f, 1f));
-		environment.add(pointLight = new PointLight().set(0.8f, 0.8f, 0.8f, 0f, 20f, 5f, 2f));
-		environment.add(new DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f));
+		environment.add(pointLight = new PointLight().set(.8f, .8f, .81f, -10f, 10f, 2f, 20f));
+		environment.add(new DirectionalLight().set(0.4f, 0.4f, 0.4f, 0f, 0f, -2f));
 		//create water mesh
-		float[] vertices = createGridVertices();
-		short[] indices = createGridIndices(vertices);
+		waterMap1 = new float[NUM_COLS * NUM_ROWS];
+		waterMap2 = new float[NUM_COLS * NUM_ROWS];
+		createWaterMap();
+		vertices = createGridVertices();
+		indices = createGridIndices(vertices);
 		createNormals(indices, vertices);
 		waterMesh = new Mesh(false, NUM_ROWS*NUM_COLS*3, numTris*3, new VertexAttributes(new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE), new VertexAttribute(Usage.Normal,  3, ShaderProgram.NORMAL_ATTRIBUTE)));
 		waterMesh.setIndices(indices);
@@ -80,7 +81,7 @@ public class Test3d implements ApplicationListener {
 		
 		ModelBuilder modelBuilder = new ModelBuilder();
 		modelBuilder.begin();
-		modelBuilder.part("water", waterMesh, GL30.GL_TRIANGLES, new Material(ColorAttribute.createDiffuse(Color.RED)));
+		modelBuilder.part("water", waterMesh, GL30.GL_TRIANGLES, new Material(ColorAttribute.createDiffuse(Color.BLUE), ColorAttribute.createSpecular(Color.YELLOW), ColorAttribute.createAmbient(Color.GREEN)));
 		model = modelBuilder.end();
 		//model = modelBuilder.createBox(5, 5, 5, new Material(ColorAttribute.createDiffuse(Color.RED)), Usage.Position | Usage.Normal);
 		instance = new ModelInstance(model);			
@@ -95,7 +96,12 @@ public class Test3d implements ApplicationListener {
 	@Override
 	public void render() {
 		tick++;
-		pointLight.setPosition((float)(10*Math.sin(tick)), 10, 20);
+		updateWaterMaps();
+		float[] vertices = createGridVertices();
+		createNormals(indices, vertices);	
+		waterMesh.setVertices(vertices);
+		
+		pointLight.setPosition((float) (10 * Math.sin(0.01*(tick))), 0, 10);
 		camController.update();
 		Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 		Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT);
@@ -157,27 +163,52 @@ public class Test3d implements ApplicationListener {
 		
 		float[] vertices = new float[NUM_ROWS * NUM_COLS * 3 * 2]; //*2 for normals
 		int i = 0;
+		int vertex = 0;
 		float xStart = -Gdx.graphics.getWidth()/2;
 		xStart = -20;
 		float yStart = -Gdx.graphics.getHeight()/2;
 		yStart = -20;
+		float multiplyer = (float) (.8*Math.sin(tick/4)+.7);
 		for(int row = 0; row< NUM_COLS; row++) {
 			for(int col = 0; col < NUM_ROWS; col++) {
 				int coordinate = 0; 
 				float x = xStart + TRI_WIDTH * col;
 				float y = yStart + TRI_WIDTH * row;
-				float z = (float) (Math.random()*3-3);
+				float z = waterMap1[vertex] * multiplyer;
 				vertices[i + coordinate++] = x;
 				vertices[i + coordinate++] = y;
 				vertices[i + coordinate++] = z;
 				//skip for normals
 				coordinate += 3;
 				i += coordinate;
+				vertex++;
 			}
 		}
 		return vertices;
 	}
-
+	
+	private void updateWaterMaps() {
+		Random rand = new Random();
+		for(int idxVertex = 0; idxVertex < NUM_COLS * NUM_ROWS; idxVertex++) {
+			waterMap1[idxVertex] += rand.nextFloat()/100 - .02;
+			waterMap2[idxVertex] += rand.nextFloat()/100 - 0.02;
+			if(waterMap1[idxVertex] > WAVE_HEIGHT || waterMap1[idxVertex] < -WAVE_HEIGHT) {
+				waterMap1[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
+			}
+			if(waterMap2[idxVertex] > WAVE_HEIGHT || waterMap2[idxVertex] < -WAVE_HEIGHT) {
+				waterMap2[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
+			}
+		}	
+	}
+	private void createWaterMap() {
+		long seed = 10;
+		Random rand = new Random(seed);
+		for(int idxVertex = 0; idxVertex < NUM_COLS * NUM_ROWS; idxVertex++) {
+			waterMap1[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
+			waterMap2[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
+		}
+	}
+	
 	private void createNormals(short[] indices, float[] vertices) {
 		//calculate face normals
 		Vector3[] faceNormals = new Vector3[numTris];
