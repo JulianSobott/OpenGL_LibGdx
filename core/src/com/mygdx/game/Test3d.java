@@ -21,6 +21,7 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.environment.PointLight;
+import com.badlogic.gdx.graphics.g3d.environment.SpotLight;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
@@ -43,12 +44,18 @@ public class Test3d implements ApplicationListener {
 	private float[] waterMap1;
 	private float[] waterMap2;
 	
-	final int NUM_ROWS = 100;
-	final int NUM_COLS = 100;
-	final int TRI_WIDTH = 1;
+	
+	
+	final int MAP_SIZE = (int) (Math.pow(2, 7) +1);
+	final int NUM_ROWS = MAP_SIZE;
+	final int NUM_COLS = MAP_SIZE;
+	final int TRI_WIDTH = 4;
 	int numTris;
 	
-	private final float WAVE_HEIGHT = .5f;
+	float[][] v = new float[NUM_COLS][NUM_ROWS];
+	float[][] u = new float[NUM_COLS][NUM_ROWS];
+	
+	private final float WAVE_HEIGHT = 15;
 	
 	@Override
 	public void create() {
@@ -56,18 +63,19 @@ public class Test3d implements ApplicationListener {
 		
 		modelBatch = new ModelBatch();
 		cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		cam.position.set(0, -30, 30f);
-		cam.lookAt(0, 0, 0);
+		cam.position.set(200, -2, 200f);
+		cam.lookAt(200, 0, 0);
 		cam.near = 1f;
-		cam.far = 300f;
+		cam.far = 600f;
 		cam.update();
 		camController = new CameraInputController(cam);
 		Gdx.input.setInputProcessor(camController);
-
+		
+		ColorAttribute ambientLight;
 		environment = new Environment();
-		environment.set(new ColorAttribute(ColorAttribute.AmbientLight, .4f, .4f, .4f, 1f));
-		environment.add(pointLight = new PointLight().set(.8f, .8f, .81f, -10f, 10f, 2f, 20f));
-		environment.add(new DirectionalLight().set(0.4f, 0.4f, 0.4f, 0f, 0f, -2f));
+		environment.set(ambientLight = new ColorAttribute(ColorAttribute.AmbientLight, .1f, .1f, .1f, 1f));
+		environment.add(pointLight = new PointLight().set(.8f, .8f, .8f, 0, 0f, -1f, 10f));
+		environment.add(new DirectionalLight().set(0.4f, 0.4f, 0.4f, 0f, 1f, -10f));
 		//create water mesh
 		waterMap1 = new float[NUM_COLS * NUM_ROWS];
 		waterMap2 = new float[NUM_COLS * NUM_ROWS];
@@ -81,7 +89,7 @@ public class Test3d implements ApplicationListener {
 		
 		ModelBuilder modelBuilder = new ModelBuilder();
 		modelBuilder.begin();
-		modelBuilder.part("water", waterMesh, GL30.GL_TRIANGLES, new Material(ColorAttribute.createDiffuse(Color.BLUE), ColorAttribute.createSpecular(Color.YELLOW), ColorAttribute.createAmbient(Color.GREEN)));
+		modelBuilder.part("water", waterMesh, GL30.GL_TRIANGLES, new Material(ColorAttribute.createDiffuse(Color.CYAN))); //, ColorAttribute.createSpecular(pointLight.color), ColorAttribute.createAmbient(ambientLight.color)
 		model = modelBuilder.end();
 		//model = modelBuilder.createBox(5, 5, 5, new Material(ColorAttribute.createDiffuse(Color.RED)), Usage.Position | Usage.Normal);
 		instance = new ModelInstance(model);			
@@ -101,7 +109,7 @@ public class Test3d implements ApplicationListener {
 		createNormals(indices, vertices);	
 		waterMesh.setVertices(vertices);
 		
-		pointLight.setPosition((float) (10 * Math.sin(0.01*(tick))), 0, 10);
+		//pointLight.setPosition((float) (10 * Math.sin(0.01*(tick))), 0, 10);
 		camController.update();
 		Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 		Gdx.gl.glClear(GL30.GL_COLOR_BUFFER_BIT | GL30.GL_DEPTH_BUFFER_BIT);
@@ -109,6 +117,12 @@ public class Test3d implements ApplicationListener {
 		modelBatch.begin(cam);
 		modelBatch.render(instance, environment);
 		modelBatch.end();
+		try {
+			Thread.sleep(10);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -160,21 +174,30 @@ public class Test3d implements ApplicationListener {
 	}
 	
 	private float[] createGridVertices() {
-		
 		float[] vertices = new float[NUM_ROWS * NUM_COLS * 3 * 2]; //*2 for normals
 		int i = 0;
 		int vertex = 0;
 		float xStart = -Gdx.graphics.getWidth()/2;
-		xStart = -20;
+		xStart = -80;
 		float yStart = -Gdx.graphics.getHeight()/2;
 		yStart = -20;
-		float multiplyer = (float) (.8*Math.sin(tick/4)+.7);
+		float multiplyer = (float) (.3*Math.sin(tick/4)+.7);
 		for(int row = 0; row< NUM_COLS; row++) {
 			for(int col = 0; col < NUM_ROWS; col++) {
 				int coordinate = 0; 
 				float x = xStart + TRI_WIDTH * col;
 				float y = yStart + TRI_WIDTH * row;
-				float z = waterMap1[vertex] * multiplyer;
+				float z = (float) (waterMap1[vertex] * multiplyer + waterMap2[vertex]);// * (1-multiplyer) + Math.random());
+				if(vertex - 1 >= 0) {
+					if(waterMap1[vertex] > 0) {
+						//z = waterMap1[vertex]/2;
+					}
+				}
+				if(vertex+1 < NUM_COLS * NUM_ROWS) {
+					if(waterMap1[vertex+1] > 0) {
+						//z = waterMap1[vertex+1]/4;
+					}
+				}				
 				vertices[i + coordinate++] = x;
 				vertices[i + coordinate++] = y;
 				vertices[i + coordinate++] = z;
@@ -188,25 +211,71 @@ public class Test3d implements ApplicationListener {
 	}
 	
 	private void updateWaterMaps() {
-		Random rand = new Random();
-		for(int idxVertex = 0; idxVertex < NUM_COLS * NUM_ROWS; idxVertex++) {
-			waterMap1[idxVertex] += rand.nextFloat()/100 - .02;
-			waterMap2[idxVertex] += rand.nextFloat()/100 - 0.02;
-			if(waterMap1[idxVertex] > WAVE_HEIGHT || waterMap1[idxVertex] < -WAVE_HEIGHT) {
-				waterMap1[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
-			}
-			if(waterMap2[idxVertex] > WAVE_HEIGHT || waterMap2[idxVertex] < -WAVE_HEIGHT) {
-				waterMap2[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
-			}
-		}	
+
 	}
 	private void createWaterMap() {
+		
+		for(int i = 0; i < NUM_COLS; i++) {
+			for(int j = 0; j < NUM_ROWS; j++) {	
+				u[i][j] = j*i + 3*j*i+i+5+j*j;
+				v[i][j] = 0;
+			}
+		}
+		
 		long seed = 10;
 		Random rand = new Random(seed);
-		for(int idxVertex = 0; idxVertex < NUM_COLS * NUM_ROWS; idxVertex++) {
-			waterMap1[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
-			waterMap2[idxVertex] = rand.nextFloat() * WAVE_HEIGHT;
+		for(int idxVertex = 0; idxVertex < 10; idxVertex++) {
+			waterMap1[rand.nextInt(NUM_COLS * NUM_ROWS - 1)] = rand.nextFloat() * WAVE_HEIGHT;
+			waterMap2[rand.nextInt(NUM_COLS * NUM_ROWS - 1)] = rand.nextFloat() * WAVE_HEIGHT;
 		}
+	
+		final float SEED = 2;
+		float[][] map = new float[MAP_SIZE][MAP_SIZE];
+		
+		map[0][0] = map[0][MAP_SIZE-1] = map[MAP_SIZE-1][0] =  map[MAP_SIZE-1][MAP_SIZE-1] = SEED;
+
+		
+		float height = WAVE_HEIGHT;
+		
+		Random r = new Random();
+		
+		for(int sideLength = MAP_SIZE-1; sideLength >= 2; sideLength/= 2, height/= 2) {
+			int halfSide = sideLength /2;
+			
+			//generate square values
+			for(int x = 0; x < MAP_SIZE-1; x+= sideLength) {
+				for(int y = 0; y< MAP_SIZE-1; y += sideLength) {
+					float avg = map[x][y] + map[x + sideLength][y] + map[x][y+sideLength] + map[x+sideLength][y+sideLength];
+					avg /= 4;
+					
+					map[x + halfSide][y + halfSide] = avg + (r.nextFloat()*2*height) - height;
+				}
+			}
+			
+			//generate diamond values
+			for(int x = 0; x<MAP_SIZE-1; x += halfSide) {
+				
+				for(int y = (x+halfSide)%sideLength; y<MAP_SIZE-1;y+=sideLength) {
+					float avg = map[(x-halfSide+MAP_SIZE)%MAP_SIZE][y] + map[(x+halfSide)%MAP_SIZE][y] + map[x][(y+halfSide)%MAP_SIZE] + map[x][(y-halfSide+MAP_SIZE)%MAP_SIZE];
+					avg /= 4;
+					
+					avg = avg + (r.nextFloat()*2*height) - height;
+					map[x][y] = avg;
+					
+					if(x == 0) map[MAP_SIZE-1][y] = avg;
+					if(y == 0) map[x][MAP_SIZE-1] = avg;
+				}
+			}
+		}
+		int i = 0;
+		for(float[] row : map){
+			for(float d : row){
+				waterMap1[i] = d;
+				waterMap2[MAP_SIZE*MAP_SIZE-i - 1] = d;
+				i++;
+			}
+		}
+		
 	}
 	
 	private void createNormals(short[] indices, float[] vertices) {
@@ -305,7 +374,6 @@ public class Test3d implements ApplicationListener {
 			vertices[idxPosition * 6 + 1 + 3] = vertexNormal.y;
 			vertices[idxPosition * 6 + 2 + 3] = vertexNormal.z;
 		}
-		System.out.println();
 	}
 	
 	private Vector3 getVertexPosition(int index, float[] vertices) {
