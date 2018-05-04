@@ -13,18 +13,22 @@ import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.VertexAttributes;
 import com.badlogic.gdx.graphics.VertexAttributes.Usage;
+import com.badlogic.gdx.graphics.g3d.Attribute;
 import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.Material;
 import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.FloatAttribute;
+import com.badlogic.gdx.graphics.g3d.environment.BaseLight;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.environment.PointLight;
 import com.badlogic.gdx.graphics.g3d.environment.SpotLight;
 import com.badlogic.gdx.graphics.g3d.utils.CameraInputController;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 
 
@@ -63,19 +67,19 @@ public class Test3d implements ApplicationListener {
 		
 		modelBatch = new ModelBatch();
 		cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		cam.position.set(200, -2, 200f);
+		cam.position.set(200, -2, 400f);
 		cam.lookAt(200, 0, 0);
 		cam.near = 1f;
-		cam.far = 600f;
+		cam.far = 700f;
 		cam.update();
 		camController = new CameraInputController(cam);
 		Gdx.input.setInputProcessor(camController);
 		
 		ColorAttribute ambientLight;
 		environment = new Environment();
-		environment.set(ambientLight = new ColorAttribute(ColorAttribute.AmbientLight, .1f, .1f, .1f, 1f));
+		environment.set(ambientLight = new ColorAttribute(ColorAttribute.AmbientLight, .5f, .5f, .5f, 1f));
 		environment.add(pointLight = new PointLight().set(.8f, .8f, .8f, 0, 0f, -1f, 10f));
-		environment.add(new DirectionalLight().set(0.4f, 0.4f, 0.4f, 0f, 1f, -10f));
+		environment.add(new DirectionalLight().set(0.4f, 0.4f, 0.4f, 0f, 100f, -10f));
 		//create water mesh
 		waterMap1 = new float[NUM_COLS * NUM_ROWS];
 		waterMap2 = new float[NUM_COLS * NUM_ROWS];
@@ -89,7 +93,7 @@ public class Test3d implements ApplicationListener {
 		
 		ModelBuilder modelBuilder = new ModelBuilder();
 		modelBuilder.begin();
-		modelBuilder.part("water", waterMesh, GL30.GL_TRIANGLES, new Material(ColorAttribute.createDiffuse(Color.CYAN))); //, ColorAttribute.createSpecular(pointLight.color), ColorAttribute.createAmbient(ambientLight.color)
+		modelBuilder.part("water", waterMesh, GL30.GL_TRIANGLES, new Material(ColorAttribute.createDiffuse(Color.CYAN)));//, ColorAttribute.createSpecular(pointLight.color), ColorAttribute.createAmbient(ambientLight.color))); //, ColorAttribute.createSpecular(pointLight.color), ColorAttribute.createAmbient(ambientLight.color)
 		model = modelBuilder.end();
 		//model = modelBuilder.createBox(5, 5, 5, new Material(ColorAttribute.createDiffuse(Color.RED)), Usage.Position | Usage.Normal);
 		instance = new ModelInstance(model);			
@@ -104,7 +108,8 @@ public class Test3d implements ApplicationListener {
 	@Override
 	public void render() {
 		tick++;
-		updateWaterMaps();
+		//updateWaterMaps();#
+		createHeightMap();
 		float[] vertices = createGridVertices();
 		createNormals(indices, vertices);	
 		waterMesh.setVertices(vertices);
@@ -117,12 +122,6 @@ public class Test3d implements ApplicationListener {
 		modelBatch.begin(cam);
 		modelBatch.render(instance, environment);
 		modelBatch.end();
-		try {
-			Thread.sleep(10);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 
 	@Override
@@ -187,17 +186,7 @@ public class Test3d implements ApplicationListener {
 				int coordinate = 0; 
 				float x = xStart + TRI_WIDTH * col;
 				float y = yStart + TRI_WIDTH * row;
-				float z = (float) (waterMap1[vertex] * multiplyer + waterMap2[vertex]);// * (1-multiplyer) + Math.random());
-				if(vertex - 1 >= 0) {
-					if(waterMap1[vertex] > 0) {
-						//z = waterMap1[vertex]/2;
-					}
-				}
-				if(vertex+1 < NUM_COLS * NUM_ROWS) {
-					if(waterMap1[vertex+1] > 0) {
-						//z = waterMap1[vertex+1]/4;
-					}
-				}				
+				float z = waterMap1[vertex];//(float) (waterMap1[vertex] * multiplyer + waterMap2[vertex]);// * (1-multiplyer) + Math.random());				
 				vertices[i + coordinate++] = x;
 				vertices[i + coordinate++] = y;
 				vertices[i + coordinate++] = z;
@@ -275,7 +264,7 @@ public class Test3d implements ApplicationListener {
 				i++;
 			}
 		}
-		
+		createHeightMap();
 	}
 	
 	private void createNormals(short[] indices, float[] vertices) {
@@ -381,5 +370,47 @@ public class Test3d implements ApplicationListener {
 		float y = vertices[index * 6 + 1];
 		float z = vertices[index * 6 + 2];
 		return new Vector3(x, y, z);
+	}
+	
+	//Different approach
+	private void createHeightMap() {
+		final int X_LENGTH = NUM_COLS;
+		final int Y_LENGHTH = NUM_ROWS;
+		
+		float[][] heightMap = new float[X_LENGTH][Y_LENGHTH];
+		int time = tick;
+		for(int x = 0; x < X_LENGTH; x++) {
+			for(int y = 0; y < Y_LENGHTH; y++) {
+				heightMap[x][y] = calcHeight(x, y, time);
+			}
+		}
+		
+		int i = 0;
+		for(float[] row : heightMap){
+			for(float d : row){
+				waterMap1[i] = d;
+				waterMap2[MAP_SIZE*MAP_SIZE-i - 1] = d;
+				i++;
+			}
+		}
+	}
+	
+	private float calcHeight(int x, int y, int time) {
+		float height = 0;
+		float PERIOD = 200;
+		float SPREADING_RATE = 1f;
+		float lamda = SPREADING_RATE * PERIOD;
+		final int NUM_WAVES = 4;
+		for(int idxWave = 1; idxWave <= NUM_WAVES; idxWave++) {
+			PERIOD = PERIOD/idxWave;
+			lamda = SPREADING_RATE * PERIOD;			
+			height += (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/2)) * Math.sin(2 * Math.PI * ((time+ Math.random())/PERIOD - y/lamda)));
+			height += (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/2)) * Math.sin(2 * Math.PI * ((time + Math.random()/2)/PERIOD - x/lamda)));
+			height -= (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/4)) * Math.sin(2 * Math.PI * ((time+ Math.random())/PERIOD - y/lamda)));
+			height -= (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/4)) * Math.sin(2 * Math.PI * ((time + Math.random()/2)/PERIOD - x/lamda)));
+		}
+		//height += (float) ((WAVE_HEIGHT/2) * Math.sin(2 * Math.PI * (time/PERIOD - x/lamda)));
+		//height += (float) ((WAVE_HEIGHT/2) * Math.sin(2 * Math.PI * (time/PERIOD - y/lamda)));
+		return height;
 	}
 }
