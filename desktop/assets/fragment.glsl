@@ -15,5 +15,8 @@ void main() {
     } else {
         gl_FragColor = vColor;
     }
-	gl_FragColor = vec4(0.0f, 0.0f, 255.0f, 255.0f);
+	float distanceFactor = distance(gl_FragCoord, vec2(250.0f,250.0f))/(250.0f*sqrt(2));
+        vec3 color = vec3(distanceFactor*.5f,distanceFactor* .9f, 255.0f);
+        gl_FragColor = vec4(color, 1.0f);
+	gl_FragColor = vColor;
 }
