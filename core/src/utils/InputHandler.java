@@ -6,8 +6,16 @@ import com.badlogic.gdx.Input.Keys;
 import water.OceanSimulation;
 
 public class InputHandler implements InputProcessor {
-
+	
+	public enum Attribute{
+		WAVE_HEIGHT, SPREADINGRATE, PERIOD,
+	}
+	
 	private OceanSimulation oceanSimulation;
+	private boolean isChangingValue = false;
+	private Attribute activeAttribute;
+	private String valueSequence = "";
+	private float value;
 	
 	public InputHandler(OceanSimulation oceanSimulation) {
 		this.oceanSimulation = oceanSimulation;
@@ -17,6 +25,16 @@ public class InputHandler implements InputProcessor {
 	public boolean keyDown(int keycode) {
 		if(keycode == Keys.SPACE) {
 			this.oceanSimulation.togglePauseSimulation();
+		}else if(keycode == Keys.ENTER) {
+			if(isChangingValue) {
+				if(!valueSequence.equals("")) {
+					value = Float.parseFloat(valueSequence);
+					this.oceanSimulation.setAttribute(activeAttribute, value);
+					System.out.println(activeAttribute + "changed to: " + value);
+					valueSequence = "";
+				}	
+			}
+			isChangingValue = !isChangingValue;
 		}
 		return false;
 	}
@@ -29,7 +47,14 @@ public class InputHandler implements InputProcessor {
 
 	@Override
 	public boolean keyTyped(char character) {
-		// TODO Auto-generated method stub
+		if(isChangingValue) {
+			if(character == 'h') activeAttribute = Attribute.WAVE_HEIGHT;
+			if(character == 's') activeAttribute = Attribute.SPREADINGRATE;
+			if(character == 'p') activeAttribute = Attribute.PERIOD;
+			if(new String("1234567890").contains(new String(""+character))) {
+				valueSequence += character; 
+			}
+		}
 		return false;
 	}
 

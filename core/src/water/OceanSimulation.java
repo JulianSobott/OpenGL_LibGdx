@@ -11,11 +11,12 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Vector3;
 
 import utils.InputHandler;
+import utils.InputHandler.Attribute;
 
 public class OceanSimulation implements ApplicationListener{
 
 	private WaterMesh waterMesh;
-	private final int MAP_SIZE = 100;
+	private final int MAP_SIZE = 200;
 	
 	private Vector3 lightPosition;
 	
@@ -29,10 +30,10 @@ public class OceanSimulation implements ApplicationListener{
 	@Override
 	public void create() {
 		cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-		cam.position.set(0, 0, 3000);
+		cam.position.set(0, 0, 4000);
 		cam.lookAt(0, 0, 0);
 		cam.near = 1f;
-		cam.far = 10000f;
+		cam.far = 100000f;
 		cam.update();
 		camController = new CameraInputController(cam);
 		
@@ -56,6 +57,7 @@ public class OceanSimulation implements ApplicationListener{
 
 	@Override
 	public void render() {
+		//System.out.println(Gdx.graphics.getFramesPerSecond());
 		if(!paused) {
 			time++;
 			waterMesh.update(time);
@@ -98,5 +100,13 @@ public class OceanSimulation implements ApplicationListener{
 	
 	public void togglePauseSimulation() {
 		this.paused = !this.paused;
+	}
+
+	public void setAttribute(Attribute activeAttribute, float value) {
+		switch(activeAttribute) {
+		case WAVE_HEIGHT: this.waterMesh.setWaveHeight(value); break;
+		case PERIOD: this.waterMesh.setPeriod(value); break;
+		case SPREADINGRATE: this.waterMesh.setSpreadingrate(value/10); break;
+		}
 	}
 }

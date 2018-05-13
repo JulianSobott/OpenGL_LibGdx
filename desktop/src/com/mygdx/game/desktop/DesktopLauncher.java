@@ -3,6 +3,7 @@ package com.mygdx.game.desktop;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 import water.OceanSimulation;
+import water.WaveSimulation;
 
 
 public class DesktopLauncher {
@@ -12,7 +13,7 @@ public class DesktopLauncher {
 		config.title = "Catan";
 		config.width = 500;
 		config.height = 500;
-		config.samples = 8;
-		new LwjglApplication(new OceanSimulation(), config);
+		//config.samples = 8;
+		new LwjglApplication(new WaveSimulation(), config);
 	}
 }

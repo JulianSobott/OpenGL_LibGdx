@@ -2,6 +2,7 @@ package water;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Mesh;
@@ -16,14 +17,22 @@ public class WaterMesh extends Mesh {
 	
 	//Constants
 	private final int MAP_SIZE;
-	private final float TRIANGLE_WIDTH = 10;
+	private final float TRIANGLE_WIDTH = 15;
 	private final int NUM_TRIANGLES;
-	private final int MAX_WAVE_HEIGHT = 40;
+	
 	
 	private float[] vertices;
 	private short[] indices;
 	private float[] heightMap;
 	
+	private List<Vector2> waveCenters = new ArrayList<Vector2>();
+	
+	//wave attributes
+	private float MAX_WAVE_HEIGHT = 30;
+	private float PERIOD = 130;
+	private float SPREADING_RATE = 0.5f;
+	
+	private final int NUM_WAVES = 1;
 
 	public WaterMesh(int MAP_SIZE) {
 		super(true, MAP_SIZE * MAP_SIZE * 3 * 2, (MAP_SIZE-1) * (MAP_SIZE-1) * 6, new VertexAttributes(new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE), new VertexAttribute(Usage.Normal,  3, ShaderProgram.NORMAL_ATTRIBUTE)));
@@ -35,9 +44,18 @@ public class WaterMesh extends Mesh {
 		vertices = new float[MAP_SIZE * MAP_SIZE * 3 * 2]; //*2 for normals
 		indices = new short[NUM_TRIANGLES*3]; //3 vertices and 2 tris for quad
 		heightMap = new float[MAP_SIZE * MAP_SIZE * 3 * 2];
+		initWaveCenters();
 		update(0);
 	}
 	
+	private void initWaveCenters() {
+		Random rand = new Random();
+		int numCenters = 5;
+		for(int i = 0; i < numCenters; i++) {
+			waveCenters.add(new Vector2(rand.nextInt(MAP_SIZE*2)-MAP_SIZE, rand.nextInt(MAP_SIZE*2)-MAP_SIZE));
+		}
+	}
+
 	public void update(int time) {
 		calculateHeightMap(time);
 		positionGridVertices();
@@ -49,15 +67,19 @@ public class WaterMesh extends Mesh {
 	
 	private void calculateHeightMap(int time) {
 		final int X_LENGTH = MAP_SIZE;
-		final int Y_LENGHTH = MAP_SIZE;
+		final int Y_LENGTH = MAP_SIZE;
+		long start;
+		long end;
 		
-		float[][] computedHeightMap = new float[X_LENGTH][Y_LENGHTH];
-		for(int x = 0; x < X_LENGTH; x++) {
-			for(int y = 0; y < Y_LENGHTH; y++) {
-				computedHeightMap[x][y] = calcHeight(x, y, time);
+		start = System.currentTimeMillis();
+		float[][] computedHeightMap = new float[X_LENGTH][Y_LENGTH];
+		for(int y = 0; y < Y_LENGTH; y++) {
+			for(int x = 0; x < X_LENGTH; x++) {
+				computedHeightMap[y][x] = calcHeight(x, y, time);
 			}
 		}
-		
+		end= System.currentTimeMillis();
+		System.out.println(end - start);
 		int i = 0;
 		for(float[] row : computedHeightMap){
 			for(float d : row){
@@ -69,25 +91,34 @@ public class WaterMesh extends Mesh {
 	
 	private float calcHeight(int x, int y, int time) {
 		float height = 0;
-		float PERIOD = 30;
-		float SPREADING_RATE = 0.2f;
 		float lamda = SPREADING_RATE * PERIOD;
-		final int NUM_WAVES = 1;
 		for(int idxWave = 1; idxWave <= NUM_WAVES; idxWave++) {
+			float tempPeriod = PERIOD/idxWave;
+			lamda = SPREADING_RATE * tempPeriod;
+			for(Vector2 center : waveCenters) {
+				float distToCenter = new Vector2(center).dst(x, y);
+				height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter/lamda)));
+			}
+			/*float distToCenter1 = new Vector2(-100, 600).dst(x, y);
+			float distToCenter2 = new Vector2(800, -200).dst(x, y);
+			float distToCenter3 = new Vector2((float) (3*Math.random()), -0).dst(x, y);
 			
-			PERIOD = PERIOD/idxWave;
-			lamda = SPREADING_RATE * PERIOD;
-			//idxWave *= 2;
 			
-			height = (float) (MAX_WAVE_HEIGHT*Math.sin(Math.PI*2*(time/PERIOD - y/lamda)));
-			//height = 10;
-			//height += (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/2)) * Math.sin(2 * Math.PI * ((time)/PERIOD - x/lamda)));
-			//height -= (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/4)) * Math.sin(2 * Math.PI * ((time+ Math.random())/PERIOD - y/lamda)));
-			//height -= (float) ((WAVE_HEIGHT/(Math.exp(idxWave)/4)) * Math.sin(2 * Math.PI * ((time + Math.random()/2)/PERIOD - x/lamda)));
-			//idxWave /= 2;
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter1/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter2/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter3/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter1/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter2/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter3/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter1/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter2/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter3/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter1/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter2/lamda)));
+			height += (float) ((MAX_WAVE_HEIGHT/(idxWave)) * Math.sin(2 * Math.PI * ((time)/tempPeriod - distToCenter3/lamda)));*/
+			//height -= (float) ((MAX_WAVE_HEIGHT/(Math.exp(idxWave)/4)) * Math.sin(2 * Math.PI * ((time + Math.random()/2)/PERIOD - x/lamda)));
+			//height = (float) (MAX_WAVE_HEIGHT * Math.sin(2 * Math.PI * ((time)/PERIOD - distToCenter/lamda)));
 		}
-		//height += (float) ((WAVE_HEIGHT/2) * Math.sin(2 * Math.PI * (time/PERIOD - x/lamda)));
-		//height += (float) ((WAVE_HEIGHT/2) * Math.sin(2 * Math.PI * (time/PERIOD - y/lamda)));
 		return height;
 	}
 	
@@ -241,5 +272,16 @@ public class WaterMesh extends Mesh {
 		float z = vertices[index * 6 + 2];
 		return new Vector3(x, y, z);
 	}
+
+	public void setWaveHeight(float height) {
+		this.MAX_WAVE_HEIGHT = height;
+	}
 	
+	public void setPeriod(float period) {
+		this.PERIOD = period;
+		System.out.println(period);
+	}
+	public void setSpreadingrate(float rate) {
+		this.SPREADING_RATE = rate;
+	}
 }

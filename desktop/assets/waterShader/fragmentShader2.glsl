@@ -14,5 +14,6 @@ void main(){
 	float ambientLightIntensity = 0.2f;
 	vec4 ambientLight = vec4(ambientLightIntensity, ambientLightIntensity, ambientLightIntensity, 1f);
 	vec4 waterAmbientColor = waterColor * ambientLight;
-	gl_FragColor = waterAmbientColor + waterColor * lightColor * lightPower * cosTheta/(distanceToLight);
+	gl_FragColor = waterAmbientColor +
+			 waterColor * lightColor * lightPower * cosTheta/(distanceToLight);
 }
