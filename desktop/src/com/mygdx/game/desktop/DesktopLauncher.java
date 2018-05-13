@@ -8,6 +8,8 @@ import com.mygdx.game.OpenGL;
 import com.mygdx.game.SimpleTests;
 import com.mygdx.game.Test3d;
 
+import water.WaveSimulation;
+
 
 public class DesktopLauncher {
 	public static void main (String[] arg) {
@@ -17,6 +19,6 @@ public class DesktopLauncher {
 		config.width = 500;
 		config.height = 500;
 		config.samples = 8;
-		new LwjglApplication(new Test3d(), config);
+		new LwjglApplication(new WaveSimulation(), config);
 	}
 }
